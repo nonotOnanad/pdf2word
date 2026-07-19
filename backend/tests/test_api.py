@@ -78,3 +78,9 @@ def test_filename_with_quote_is_sanitized(text_pdf):
     assert resp.status_code == 200
     assert '"' not in resp.headers["content-disposition"].replace('filename="', "").replace('.docx"', "")
     assert "weird.docx" in resp.headers["content-disposition"]
+
+
+def test_filename_percent_sequences_preserved(text_pdf):
+    resp = _upload(text_pdf, "100%25done.pdf")
+    assert resp.status_code == 200
+    assert "100%25done.docx" in resp.headers["content-disposition"]
