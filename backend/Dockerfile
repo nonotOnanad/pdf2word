@@ -2,6 +2,10 @@ FROM python:3.11-slim
 
 WORKDIR /srv
 
+# opencv-python-headless (via pdf2docx) links against glib on some builds
+RUN apt-get update && apt-get install -y --no-install-recommends libglib2.0-0 \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
@@ -12,4 +16,4 @@ EXPOSE 8000
 
 # single worker: conversions are CPU/memory heavy; free tier has ~512MB.
 # uvicorn's threadpool queues concurrent requests instead of forking workers.
-CMD uvicorn app.main:app --host 0.0.0.0 --port ${PORT} --timeout-keep-alive 130
+CMD exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT} --timeout-keep-alive 130
