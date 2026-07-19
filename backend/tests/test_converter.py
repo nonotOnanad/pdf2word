@@ -33,3 +33,13 @@ def test_no_temp_files_left_behind(text_pdf):
     after = set(os.listdir(tmp))
     leftovers = [f for f in after - before if "pdf2word" in f]
     assert leftovers == []
+
+
+def test_invalid_pdf_raises_conversion_error():
+    """Test that invalid PDF bytes raise ConversionError, not raw exceptions."""
+    import pytest
+    from app.converter import convert_pdf_to_docx, ConversionError
+    
+    invalid_pdf = b"%PDF-1.4 not really a pdf"
+    with pytest.raises(ConversionError):
+        convert_pdf_to_docx(invalid_pdf)
