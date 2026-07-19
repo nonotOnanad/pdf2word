@@ -8,3 +8,44 @@ def test_health():
     resp = client.get("/api/health")
     assert resp.status_code == 200
     assert resp.json() == {"status": "ok"}
+
+
+DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+
+
+def _upload(data: bytes, filename: str = "sample.pdf"):
+    return client.post(
+        "/api/convert", files={"file": (filename, data, "application/pdf")}
+    )
+
+
+def test_convert_success(text_pdf):
+    resp = _upload(text_pdf, "report.pdf")
+    assert resp.status_code == 200
+    assert resp.headers["content-type"] == DOCX_MIME
+    assert 'filename="report.docx"' in resp.headers["content-disposition"]
+    assert len(resp.content) > 0
+
+
+def test_convert_rejects_non_pdf(not_a_pdf):
+    resp = _upload(not_a_pdf, "fake.pdf")
+    assert resp.status_code == 400
+    assert resp.json()["code"] == "NOT_A_PDF"
+
+
+def test_convert_rejects_encrypted(encrypted_pdf):
+    resp = _upload(encrypted_pdf)
+    assert resp.status_code == 400
+    assert resp.json()["code"] == "ENCRYPTED"
+
+
+def test_convert_rejects_scanned(scanned_pdf):
+    resp = _upload(scanned_pdf)
+    assert resp.status_code == 422
+    assert resp.json()["code"] == "SCANNED"
+
+
+def test_convert_rejects_too_many_pages(many_pages_pdf):
+    resp = _upload(many_pages_pdf)
+    assert resp.status_code == 400
+    assert resp.json()["code"] == "TOO_MANY_PAGES"
