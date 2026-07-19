@@ -49,3 +49,32 @@ def test_convert_rejects_too_many_pages(many_pages_pdf):
     resp = _upload(many_pages_pdf)
     assert resp.status_code == 400
     assert resp.json()["code"] == "TOO_MANY_PAGES"
+
+
+def test_convert_rejects_too_large(text_pdf):
+    padded = text_pdf + b"\0" * (20 * 1024 * 1024)
+    resp = _upload(padded)
+    assert resp.status_code == 413
+    assert resp.json()["code"] == "TOO_LARGE"
+
+
+def test_convert_conversion_failure_returns_500(monkeypatch, text_pdf):
+    from app import main as main_module
+    from app.converter import ConversionError
+
+    def boom(_):
+        raise ConversionError("kaboom")
+
+    monkeypatch.setattr(main_module, "convert_pdf_to_docx", boom)
+    resp = _upload(text_pdf)
+    assert resp.status_code == 500
+    body = resp.json()
+    assert body["code"] == "CONVERSION_FAILED"
+    assert "kaboom" not in body["message"]
+
+
+def test_filename_with_quote_is_sanitized(text_pdf):
+    resp = _upload(text_pdf, 'we"ird.pdf')
+    assert resp.status_code == 200
+    assert '"' not in resp.headers["content-disposition"].replace('filename="', "").replace('.docx"', "")
+    assert "weird.docx" in resp.headers["content-disposition"]
