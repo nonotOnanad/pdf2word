@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: pdf2word-api
+    runtime: docker
+    rootDir: backend
+    plan: free
+    healthCheckPath: /api/health
+    envVars:
+      - key: ALLOWED_ORIGINS
+        value: http://localhost:5173   # replace with prod frontend URL after Vercel deploy
+      - key: RATE_LIMIT
+        value: 10/hour
