@@ -1,4 +1,5 @@
 import re
+import urllib.parse
 from pathlib import Path
 
 from fastapi import FastAPI, Request, UploadFile
@@ -22,6 +23,9 @@ app.add_middleware(
 
 
 def _safe_docx_name(filename: str | None) -> str:
+    # Decode URL-encoded filename
+    if filename:
+        filename = urllib.parse.unquote(filename)
     stem = Path(filename or "converted.pdf").stem
     stem = re.sub(r'[\x00-\x1f"\\;]', "", stem).strip() or "converted"
     return stem + ".docx"
@@ -43,7 +47,7 @@ def convert(request: Request, file: UploadFile):
             status_code=exc.status_code,
             content={"code": exc.code, "message": exc.message},
         )
-    except ConversionError:
+    except ConversionError as exc:
         return JSONResponse(
             status_code=500,
             content={"code": "CONVERSION_FAILED", "message": "We couldn't convert this PDF."},

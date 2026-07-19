@@ -73,11 +73,13 @@ def test_convert_conversion_failure_returns_500(monkeypatch, text_pdf):
     assert "kaboom" not in body["message"]
 
 
-def test_filename_with_quote_is_sanitized(text_pdf):
-    resp = _upload(text_pdf, 'we"ird.pdf')
-    assert resp.status_code == 200
-    assert '"' not in resp.headers["content-disposition"].replace('filename="', "").replace('.docx"', "")
-    assert "weird.docx" in resp.headers["content-disposition"]
+def test_safe_docx_name_strips_quotes_and_control_chars():
+    from app.main import _safe_docx_name
+
+    assert _safe_docx_name('we"ird.pdf') == "weird.docx"
+    assert _safe_docx_name("evil\r\nSet-Cookie: x.pdf") == "evilSet-Cookie: x.docx"
+    assert _safe_docx_name(None) == "converted.docx"
+    assert _safe_docx_name('""".pdf') == "converted.docx"
 
 
 def test_filename_percent_sequences_preserved(text_pdf):
