@@ -4,14 +4,28 @@ from pathlib import Path
 from fastapi import FastAPI, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
+from slowapi import Limiter
+from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
 
-from app.config import ALLOWED_ORIGINS
+from app.config import ALLOWED_ORIGINS, RATE_LIMIT
 from app.converter import ConversionError, convert_pdf_to_docx
 from app.validation import PdfValidationError, validate_pdf
 
 DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 
+limiter = Limiter(key_func=get_remote_address)
 app = FastAPI(title="PDF to Word Converter")
+app.state.limiter = limiter
+
+
+@app.exception_handler(RateLimitExceeded)
+def rate_limit_handler(request: Request, exc: RateLimitExceeded):
+    return JSONResponse(
+        status_code=429,
+        content={"code": "RATE_LIMITED", "message": "Hourly limit reached — try again later."},
+    )
+
 
 app.add_middleware(
     CORSMiddleware,
@@ -33,6 +47,7 @@ def health():
 
 
 @app.post("/api/convert")
+@limiter.limit(RATE_LIMIT)
 def convert(request: Request, file: UploadFile):
     data = file.file.read()
     try:

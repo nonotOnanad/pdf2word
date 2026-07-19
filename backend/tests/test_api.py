@@ -86,3 +86,31 @@ def test_filename_percent_sequences_preserved(text_pdf):
     resp = _upload(text_pdf, "100%25done.pdf")
     assert resp.status_code == 200
     assert "100%25done.docx" in resp.headers["content-disposition"]
+
+
+def test_rate_limit(monkeypatch, text_pdf):
+    # Rebuild app with a tiny limit so the test is fast
+    monkeypatch.setenv("RATE_LIMIT", "2/hour")
+    import importlib
+
+    from app import config, main
+    importlib.reload(config)
+    importlib.reload(main)
+    from fastapi.testclient import TestClient as TC
+
+    local_client = TC(main.app)
+    for _ in range(2):
+        ok = local_client.post(
+            "/api/convert", files={"file": ("a.pdf", text_pdf, "application/pdf")}
+        )
+        assert ok.status_code == 200
+    limited = local_client.post(
+        "/api/convert", files={"file": ("a.pdf", text_pdf, "application/pdf")}
+    )
+    assert limited.status_code == 429
+    assert limited.json()["code"] == "RATE_LIMITED"
+
+    # restore modules for other tests
+    monkeypatch.delenv("RATE_LIMIT")
+    importlib.reload(config)
+    importlib.reload(main)
