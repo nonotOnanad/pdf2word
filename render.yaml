@@ -7,6 +7,6 @@ services:
     healthCheckPath: /api/health
     envVars:
       - key: ALLOWED_ORIGINS
-        value: http://localhost:5173   # replace with prod frontend URL after Vercel deploy
+        value: https://pdf2word-silk.vercel.app,https://pdf2word-nonotonanads-projects.vercel.app,http://localhost:5173
       - key: RATE_LIMIT
         value: 10/hour
