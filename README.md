@@ -30,7 +30,7 @@ cd frontend && npm test
 
 ## Limits
 
-20 MB max, 100 pages max, 10 conversions/hour/IP. Digital PDFs only (no OCR).
+20 MB max, 100 pages max, 10 conversions/hour/IP. Digital PDFs only (no OCR). Long-running conversions are bounded by the hosting platform's request timeout (Render ~100s-5min depending on plan) rather than an in-app watchdog.
 
 ## Deploy
 
@@ -51,3 +51,5 @@ cd frontend && npm test
 - [ ] Non-PDF renamed to `.pdf` → "That file isn't a PDF."
 - [ ] 11th conversion within an hour → rate-limit message
 - [ ] Browser devtools: no CORS errors from the production domain
+- [ ] Downloaded file is named <original>.docx (not converted.docx) when fetched from the production frontend origin
+- [ ] Rate limit is per-IP: two different networks get independent 10/hour quotas

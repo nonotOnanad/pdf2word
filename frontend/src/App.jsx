@@ -44,6 +44,7 @@ export default function App() {
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     multiple: false,
+    disabled: status === 'converting',
   })
 
   return (

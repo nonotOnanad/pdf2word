@@ -16,4 +16,5 @@ EXPOSE 8000
 
 # single worker: conversions are CPU/memory heavy; free tier has ~512MB.
 # uvicorn's threadpool queues concurrent requests instead of forking workers.
-CMD exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT} --timeout-keep-alive 130
+# NOTE: --timeout-keep-alive is idle keep-alive only; long conversions are bounded by Render's platform request timeout, not uvicorn.
+CMD exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT} --timeout-keep-alive 130 --proxy-headers --forwarded-allow-ips="*"

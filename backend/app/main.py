@@ -8,7 +8,7 @@ from slowapi import Limiter
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 
-from app.config import ALLOWED_ORIGINS, RATE_LIMIT
+from app.config import ALLOWED_ORIGINS, MAX_FILE_SIZE_BYTES, RATE_LIMIT
 from app.converter import ConversionError, convert_pdf_to_docx
 from app.validation import PdfValidationError, validate_pdf
 
@@ -32,6 +32,7 @@ app.add_middleware(
     allow_origins=ALLOWED_ORIGINS,
     allow_methods=["GET", "POST"],
     allow_headers=["*"],
+    expose_headers=["Content-Disposition"],
 )
 
 
@@ -49,7 +50,7 @@ def health():
 @app.post("/api/convert")
 @limiter.limit(RATE_LIMIT)
 def convert(request: Request, file: UploadFile):
-    data = file.file.read()
+    data = file.file.read(MAX_FILE_SIZE_BYTES + 1)
     try:
         validate_pdf(data)
         docx_bytes = convert_pdf_to_docx(data)
