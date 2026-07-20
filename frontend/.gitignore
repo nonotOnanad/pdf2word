@@ -25,3 +25,4 @@ dist-ssr
 
 # Test artifacts
 src/__tests__/debug.test.js.disabled
+dist.old/
