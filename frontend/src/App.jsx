@@ -61,10 +61,13 @@ export default function App() {
       >
         <input {...getInputProps()} data-testid="file-input" />
         {status === 'converting' ? (
-          <p className="text-slate-600 animate-pulse">Converting…</p>
+          <p className="text-slate-600 animate-pulse">
+            Converting… scanned PDFs can take a minute.
+          </p>
         ) : (
           <p className="text-slate-600">
-            Drag a PDF here, or click to choose a file (max 20 MB, 100 pages)
+            Drag a PDF here, or click to choose a file (max 20 MB, 100 pages;
+            scanned PDFs up to 20 pages)
           </p>
         )}
       </div>

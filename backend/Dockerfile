@@ -2,8 +2,20 @@ FROM python:3.11-slim
 
 WORKDIR /srv
 
-# opencv-python-headless (via pdf2docx) links against glib on some builds
-RUN apt-get update && apt-get install -y --no-install-recommends libglib2.0-0 \
+# libglib2.0-0: opencv-python-headless (via pdf2docx) links against glib on some builds
+# tesseract-ocr + language packs, ghostscript: OCR pipeline (ocrmypdf)
+# tesseract-ocr-osd: script/orientation detection for --rotate-pages
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libglib2.0-0 \
+    ghostscript \
+    tesseract-ocr \
+    tesseract-ocr-osd \
+    tesseract-ocr-spa \
+    tesseract-ocr-fra \
+    tesseract-ocr-deu \
+    tesseract-ocr-ita \
+    tesseract-ocr-por \
+    tesseract-ocr-nld \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .

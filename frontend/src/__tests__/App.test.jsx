@@ -43,9 +43,9 @@ describe('App', () => {
 
   it('shows API error message', async () => {
     const { ApiError } = await import('../api')
-    convertPdf.mockRejectedValue(new ApiError('SCANNED', "This looks like a scanned PDF — OCR isn't supported yet."))
+    convertPdf.mockRejectedValue(new ApiError('TOO_MANY_PAGES_OCR', 'Scanned PDFs are limited to 20 pages.'))
     render(<App />)
     await userEvent.upload(screen.getByTestId('file-input'), makePdf())
-    expect(await screen.findByText(/scanned pdf/i)).toBeInTheDocument()
+    expect(await screen.findByText(/scanned pdfs are limited/i)).toBeInTheDocument()
   })
 })

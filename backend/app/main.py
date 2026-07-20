@@ -9,7 +9,8 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 
 from app.config import ALLOWED_ORIGINS, MAX_FILE_SIZE_BYTES, RATE_LIMIT
-from app.converter import ConversionError, convert_pdf_to_docx
+from app.converter import ConversionError, convert_pdf_to_docx, text_pdf_to_docx
+from app.ocr import OcrError, ocr_pdf
 from app.validation import PdfValidationError, validate_pdf
 
 DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
@@ -52,12 +53,21 @@ def health():
 def convert(request: Request, file: UploadFile):
     data = file.file.read(MAX_FILE_SIZE_BYTES + 1)
     try:
-        validate_pdf(data)
-        docx_bytes = convert_pdf_to_docx(data)
+        is_scanned = validate_pdf(data)
+        if is_scanned:
+            searchable_pdf = ocr_pdf(data)
+            docx_bytes = text_pdf_to_docx(searchable_pdf)
+        else:
+            docx_bytes = convert_pdf_to_docx(data)
     except PdfValidationError as exc:
         return JSONResponse(
             status_code=exc.status_code,
             content={"code": exc.code, "message": exc.message},
+        )
+    except OcrError:
+        return JSONResponse(
+            status_code=500,
+            content={"code": "OCR_FAILED", "message": "We couldn't read this scanned PDF."},
         )
     except ConversionError:
         return JSONResponse(

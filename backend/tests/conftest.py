@@ -49,6 +49,41 @@ def scanned_pdf() -> bytes:
 
 
 @pytest.fixture
+def scanned_pdf_many_pages() -> bytes:
+    # 21 image-only pages: over the scanned-PDF OCR cap (20) but under MAX_PAGES
+    doc = fitz.open()
+    for _ in range(21):
+        page = doc.new_page()
+        page.draw_rect(fitz.Rect(50, 50, 500, 700), color=(0, 0, 0), width=1)
+    data = doc.tobytes()
+    doc.close()
+    return data
+
+
+@pytest.fixture
+def scanned_image_pdf() -> bytes:
+    """A real 'scan': text rendered to a bitmap, embedded as a page image.
+
+    No text layer at all — OCR is the only way to get the words back.
+    """
+    src = fitz.open()
+    page = src.new_page()
+    page.insert_text(
+        (72, 120), "The quick brown fox jumps over the lazy dog.", fontsize=18
+    )
+    page.insert_text((72, 160), "OCR round trip test 12345.", fontsize=18)
+    pix = page.get_pixmap(dpi=200)
+    src.close()
+
+    out = fitz.open()
+    out_page = out.new_page(width=612, height=792)
+    out_page.insert_image(out_page.rect, pixmap=pix)
+    data = out.tobytes()
+    out.close()
+    return data
+
+
+@pytest.fixture
 def encrypted_pdf() -> bytes:
     doc = fitz.open()
     page = doc.new_page()

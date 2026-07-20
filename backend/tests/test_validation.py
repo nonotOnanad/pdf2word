@@ -3,8 +3,8 @@ import pytest
 from app.validation import PdfValidationError, validate_pdf
 
 
-def test_valid_pdf_passes(text_pdf):
-    assert validate_pdf(text_pdf) is None
+def test_valid_pdf_passes_not_scanned(text_pdf):
+    assert validate_pdf(text_pdf) is False
 
 
 def test_not_a_pdf_rejected(not_a_pdf):
@@ -36,11 +36,15 @@ def test_too_many_pages_rejected(many_pages_pdf):
     assert exc.value.status_code == 400
 
 
-def test_scanned_rejected(scanned_pdf):
+def test_scanned_detected(scanned_pdf):
+    assert validate_pdf(scanned_pdf) is True
+
+
+def test_scanned_over_ocr_page_cap_rejected(scanned_pdf_many_pages):
     with pytest.raises(PdfValidationError) as exc:
-        validate_pdf(scanned_pdf)
-    assert exc.value.code == "SCANNED"
-    assert exc.value.status_code == 422
+        validate_pdf(scanned_pdf_many_pages)
+    assert exc.value.code == "TOO_MANY_PAGES_OCR"
+    assert exc.value.status_code == 400
 
 
 def test_corrupt_pdf_with_magic_bytes_rejected():

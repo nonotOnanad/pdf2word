@@ -22,10 +22,10 @@ describe('convertPdf', () => {
 
   it('throws ApiError with code on API error', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(
-      JSON.stringify({ code: 'SCANNED', message: 'This looks like a scanned PDF — OCR isn\'t supported yet.' }),
-      { status: 422, headers: { 'Content-Type': 'application/json' } },
+      JSON.stringify({ code: 'TOO_MANY_PAGES_OCR', message: 'Scanned PDFs are limited to 20 pages.' }),
+      { status: 400, headers: { 'Content-Type': 'application/json' } },
     )))
-    await expect(convertPdf(fakeFile)).rejects.toMatchObject({ code: 'SCANNED' })
+    await expect(convertPdf(fakeFile)).rejects.toMatchObject({ code: 'TOO_MANY_PAGES_OCR' })
   })
 
   it('throws ApiError with NETWORK code when fetch fails', async () => {

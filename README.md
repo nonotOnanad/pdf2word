@@ -1,11 +1,11 @@
 # PDF to Word Converter
 
-Free web tool that converts digital PDFs to editable .docx. Files are never stored.
+Free web tool that converts PDFs (digital and scanned) to editable .docx. Files are never stored.
 
 ## Stack
 
 - `frontend/` — React + Vite + Tailwind (Vercel)
-- `backend/` — FastAPI + pdf2docx (Docker on Render)
+- `backend/` — FastAPI + pdf2docx + ocrmypdf/Tesseract for scanned PDFs (Docker on Render)
 
 ## Local development
 
@@ -13,6 +13,9 @@ Free web tool that converts digital PDFs to editable .docx. Files are never stor
 # backend
 cd backend && python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
+# for OCR locally: also install system deps
+#   Debian/Ubuntu: sudo apt install tesseract-ocr tesseract-ocr-osd ghostscript
+#   macOS: brew install tesseract ghostscript
 uvicorn app.main:app --port 8000
 ```
 
@@ -30,7 +33,7 @@ cd frontend && npm test
 
 ## Limits
 
-20 MB max, 100 pages max, 10 conversions/hour/IP. Digital PDFs only (no OCR). Long-running conversions are bounded by the hosting platform's request timeout (Render ~100s-5min depending on plan) rather than an in-app watchdog.
+20 MB max, 100 pages max, 10 conversions/hour/IP. Scanned PDFs are OCR'd (Tesseract via ocrmypdf) and capped at 20 pages (`MAX_OCR_PAGES`) because OCR is ~5-10s/page. OCR languages default to `eng+spa+fra+deu+ita+por+nld` (`OCR_LANGUAGES`; packs installed in the Docker image). Scanned output is text-focused: recognized text as editable paragraphs, original page images are not embedded. Long-running conversions are bounded by the hosting platform's request timeout (Render ~100s-5min depending on plan) plus an OCR subprocess timeout (`OCR_TIMEOUT_SECONDS`, default 240s).
 
 ## Deploy
 
@@ -46,7 +49,8 @@ cd frontend && npm test
 - [ ] Multi-column PDF converts (fidelity may vary — acceptable)
 - [ ] PDF with a table converts; table is editable
 - [ ] Password-protected PDF → "Password-protected PDFs aren't supported."
-- [ ] Scanned PDF → scanned-PDF message
+- [ ] Scanned PDF (≤20 pages) converts; .docx contains recognized, editable text
+- [ ] Scanned PDF with 21+ pages → "Scanned PDFs are limited to 20 pages."
 - [ ] 25 MB file → rejected client-side before upload
 - [ ] Non-PDF renamed to `.pdf` → "That file isn't a PDF."
 - [ ] 11th conversion within an hour → rate-limit message

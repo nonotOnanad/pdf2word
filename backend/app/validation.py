@@ -1,6 +1,6 @@
 import fitz  # PyMuPDF
 
-from app.config import MAX_FILE_SIZE_BYTES, MAX_FILE_SIZE_MB, MAX_PAGES
+from app.config import MAX_FILE_SIZE_BYTES, MAX_FILE_SIZE_MB, MAX_OCR_PAGES, MAX_PAGES
 
 MIN_TEXT_CHARS = 20  # below this across all pages => treated as scanned
 
@@ -13,7 +13,8 @@ class PdfValidationError(Exception):
         self.status_code = status_code
 
 
-def validate_pdf(data: bytes) -> None:
+def validate_pdf(data: bytes) -> bool:
+    """Validate the upload. Returns True if the PDF looks scanned (needs OCR)."""
     if len(data) > MAX_FILE_SIZE_BYTES:
         raise PdfValidationError(
             "TOO_LARGE", f"Max file size is {MAX_FILE_SIZE_MB} MB.", 413
@@ -36,11 +37,13 @@ def validate_pdf(data: bytes) -> None:
                 "TOO_MANY_PAGES", f"Max {MAX_PAGES} pages.", 400
             )
         total_chars = sum(len(page.get_text().strip()) for page in doc)
-        if total_chars < MIN_TEXT_CHARS:
+        is_scanned = total_chars < MIN_TEXT_CHARS
+        if is_scanned and doc.page_count > MAX_OCR_PAGES:
             raise PdfValidationError(
-                "SCANNED",
-                "This looks like a scanned PDF — OCR isn't supported yet.",
-                422,
+                "TOO_MANY_PAGES_OCR",
+                f"Scanned PDFs are limited to {MAX_OCR_PAGES} pages.",
+                400,
             )
+        return is_scanned
     finally:
         doc.close()

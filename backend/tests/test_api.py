@@ -39,10 +39,42 @@ def test_convert_rejects_encrypted(encrypted_pdf):
     assert resp.json()["code"] == "ENCRYPTED"
 
 
-def test_convert_rejects_scanned(scanned_pdf):
+def test_convert_scanned_routes_through_ocr(monkeypatch, scanned_pdf):
+    """Scanned PDFs go through ocr_pdf + text_pdf_to_docx (mocked: no tesseract needed)."""
+    from app import main as main_module
+
+    calls = []
+    monkeypatch.setattr(
+        main_module, "ocr_pdf", lambda data: calls.append("ocr") or b"%PDF-fake"
+    )
+    monkeypatch.setattr(
+        main_module, "text_pdf_to_docx", lambda data: calls.append("docx") or b"docx-bytes"
+    )
+    resp = _upload(scanned_pdf, "scan.pdf")
+    assert resp.status_code == 200
+    assert calls == ["ocr", "docx"]
+    assert 'filename="scan.docx"' in resp.headers["content-disposition"]
+
+
+def test_convert_scanned_over_ocr_cap_rejected(scanned_pdf_many_pages):
+    resp = _upload(scanned_pdf_many_pages)
+    assert resp.status_code == 400
+    assert resp.json()["code"] == "TOO_MANY_PAGES_OCR"
+
+
+def test_convert_ocr_failure_returns_500(monkeypatch, scanned_pdf):
+    from app import main as main_module
+    from app.ocr import OcrError
+
+    def boom(_):
+        raise OcrError("tesseract exploded")
+
+    monkeypatch.setattr(main_module, "ocr_pdf", boom)
     resp = _upload(scanned_pdf)
-    assert resp.status_code == 422
-    assert resp.json()["code"] == "SCANNED"
+    assert resp.status_code == 500
+    body = resp.json()
+    assert body["code"] == "OCR_FAILED"
+    assert "tesseract" not in body["message"]
 
 
 def test_convert_rejects_too_many_pages(many_pages_pdf):
