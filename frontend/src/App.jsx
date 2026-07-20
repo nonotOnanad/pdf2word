@@ -1,122 +1,86 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+import { useCallback, useState } from 'react'
+import { useDropzone } from 'react-dropzone'
+import { convertPdf } from './api'
 
-function App() {
-  const [count, setCount] = useState(0)
+const MAX_SIZE_BYTES = 20 * 1024 * 1024
+
+export default function App() {
+  const [status, setStatus] = useState('idle') // idle | converting | done | error
+  const [error, setError] = useState('')
+  const [download, setDownload] = useState(null) // { url, filename }
+
+  const reset = () => {
+    if (download) URL.revokeObjectURL(download.url)
+    setDownload(null)
+    setError('')
+    setStatus('idle')
+  }
+
+  const handleFile = useCallback(async (file) => {
+    reset()
+    if (!file) return
+    if (!file.name.toLowerCase().endsWith('.pdf')) {
+      setError("That file isn't a PDF.")
+      setStatus('error')
+      return
+    }
+    if (file.size > MAX_SIZE_BYTES) {
+      setError('Max file size is 20 MB.')
+      setStatus('error')
+      return
+    }
+    setStatus('converting')
+    try {
+      const { blob, filename } = await convertPdf(file)
+      setDownload({ url: URL.createObjectURL(blob), filename })
+      setStatus('done')
+    } catch (e) {
+      setError(e.message || 'Something went wrong.')
+      setStatus('error')
+    }
+  }, [download])
+
+  const onDrop = useCallback((accepted) => handleFile(accepted[0]), [handleFile])
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    multiple: false,
+  })
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
+    <main className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6">
+      <h1 className="text-3xl font-bold text-slate-800 mb-2">PDF to Word</h1>
+      <p className="text-slate-500 mb-8">
+        Convert PDFs to editable .docx — free. Your files are never stored.
+      </p>
+
+      <div
+        {...getRootProps()}
+        className={`w-full max-w-lg border-2 border-dashed rounded-xl p-12 text-center cursor-pointer transition
+          ${isDragActive ? 'border-blue-500 bg-blue-50' : 'border-slate-300 bg-white'}`}
+      >
+        <input {...getInputProps()} data-testid="file-input" />
+        {status === 'converting' ? (
+          <p className="text-slate-600 animate-pulse">Converting…</p>
+        ) : (
+          <p className="text-slate-600">
+            Drag a PDF here, or click to choose a file (max 20 MB, 100 pages)
           </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
+        )}
+      </div>
+
+      {status === 'done' && download && (
+        <a
+          href={download.url}
+          download={download.filename}
+          className="mt-6 px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700"
         >
-          Count is {count}
-        </button>
-      </section>
+          Download {download.filename}
+        </a>
+      )}
 
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
+      {status === 'error' && (
+        <p className="mt-6 text-red-600" role="alert">{error}</p>
+      )}
+    </main>
   )
 }
-
-export default App
