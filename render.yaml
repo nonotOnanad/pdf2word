@@ -1,3 +1,9 @@
+databases:
+  - name: pdf2word-db
+    plan: free            # NOTE: Render free Postgres is time-limited; upgrade before it expires.
+    databaseName: pdf2word
+    user: pdf2word
+
 services:
   - type: web
     name: pdf2word-api
@@ -5,8 +11,41 @@ services:
     rootDir: backend
     plan: free
     healthCheckPath: /api/health
+    # Run DB migrations before each deploy goes live.
+    preDeployCommand: alembic upgrade head
     envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: pdf2word-db
+          property: connectionString
       - key: ALLOWED_ORIGINS
         value: https://pdf2word-silk.vercel.app,https://pdf2word-nonotonanads-projects.vercel.app,http://localhost:5173
       - key: RATE_LIMIT
         value: 10/hour
+      # --- auth / cross-origin (Phase 4 Workstream A) ---
+      - key: APP_BASE_URL
+        value: https://pdf2word-silk.vercel.app
+      - key: API_BASE_URL
+        sync: false          # set to this service's public Render URL after first deploy
+      - key: COOKIE_SECURE
+        value: "1"
+      - key: SESSION_COOKIE_SAMESITE
+        value: none
+      - key: AUTH_REQUEST_MAX_PER_HOUR
+        value: "5"
+      # --- email (magic links) ---
+      - key: EMAIL_PROVIDER
+        value: resend
+      - key: EMAIL_FROM
+        value: login@pdf2word.app     # must be a verified sender in Resend
+      - key: RESEND_API_KEY
+        sync: false          # paste in the Render dashboard (secret)
+      # --- billing (Phase 4 Workstream B) ---
+      - key: STRIPE_SECRET_KEY
+        sync: false          # secret — set in dashboard
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false          # from the Stripe webhook endpoint you create
+      - key: STRIPE_PRICE_MONTHLY
+        sync: false          # price_… id for the monthly plan
+      - key: STRIPE_PRICE_ANNUAL
+        sync: false          # price_… id for the annual plan

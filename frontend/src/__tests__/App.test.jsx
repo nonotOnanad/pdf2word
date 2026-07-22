@@ -5,6 +5,11 @@ import App from '../App'
 
 vi.mock('../api', () => ({
   convertPdf: vi.fn(),
+  getMe: vi.fn().mockResolvedValue(null),
+  requestMagicLink: vi.fn().mockResolvedValue(true),
+  logout: vi.fn().mockResolvedValue(undefined),
+  startCheckout: vi.fn(),
+  openBillingPortal: vi.fn(),
   ApiError: class ApiError extends Error {
     constructor(code, message) { super(message); this.code = code }
   },

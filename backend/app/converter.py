@@ -74,6 +74,45 @@ def _fix_column_sections(docx_bytes: bytes) -> bytes:
             merged = True
             break
 
+    # The document's final section is stored as a body-level <w:sectPr> (not
+    # inside a paragraph), so the loop above never sees it. If it still carries
+    # a nextColumn break, the cross-app page-break bug survives on the last
+    # column. Normalize it the same way: continuous section + explicit column
+    # break at the section start.
+    body_sect = body.find("w:sectPr", NS)
+    if body_sect is not None:
+        type_el = body_sect.find("w:type", NS)
+        type_val = type_el.get(f"{{{W}}}val") if type_el is not None else None
+        if type_val == "nextColumn":
+            body_cols = body_sect.find("w:cols", NS)
+            body_sig = etree.tostring(body_cols) if body_cols is not None else b""
+            paras = list(body)
+            prev_idx = None
+            prev_sig = None
+            for i, el in enumerate(paras):
+                if el.tag != f"{{{W}}}p":
+                    continue
+                s = el.find("w:pPr/w:sectPr", NS)
+                if s is not None:
+                    prev_idx = i
+                    pc = s.find("w:cols", NS)
+                    prev_sig = etree.tostring(pc) if pc is not None else b""
+            # Only merge when the column layout matches (or there is no prior
+            # section), so we never collapse genuinely different layouts.
+            if prev_sig is None or prev_sig == body_sig:
+                type_el.set(f"{{{W}}}val", "continuous")
+                start = prev_idx + 1 if prev_idx is not None else 0
+                for nxt in paras[start:]:
+                    if nxt.tag != f"{{{W}}}p":
+                        continue
+                    run = etree.Element(f"{{{W}}}r")
+                    br = etree.SubElement(run, f"{{{W}}}br")
+                    br.set(f"{{{W}}}type", "column")
+                    ppr = nxt.find("w:pPr", NS)
+                    nxt.insert(list(nxt).index(ppr) + 1 if ppr is not None else 0, run)
+                    break
+                modified = True
+
     if not modified:
         return docx_bytes
 

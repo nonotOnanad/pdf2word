@@ -22,6 +22,8 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY app/ ./app/
+COPY alembic.ini .
+COPY migrations/ ./migrations/
 
 ENV PORT=8000
 EXPOSE 8000

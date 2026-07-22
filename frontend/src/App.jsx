@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react'
 import { useDropzone } from 'react-dropzone'
 import { convertPdf } from './api'
+import AccountBar from './AccountBar'
 
 const MAX_SIZE_BYTES = 20 * 1024 * 1024
 
@@ -48,8 +49,9 @@ export default function App() {
   })
 
   return (
-    <main className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6">
-      <h1 className="text-3xl font-bold text-slate-800 mb-2">PDF to Word</h1>
+    <main className="min-h-screen bg-slate-50 flex flex-col items-center p-6">
+      <AccountBar />
+      <h1 className="text-3xl font-bold text-slate-800 mb-2 mt-8">PDF to Word</h1>
       <p className="text-slate-500 mb-8">
         Convert PDFs to editable .docx — free. Your files are never stored.
       </p>
