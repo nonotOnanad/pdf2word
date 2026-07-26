@@ -37,7 +37,10 @@ services:
       - key: EMAIL_PROVIDER
         value: resend
       - key: EMAIL_FROM
-        value: login@pdf2word.app     # must be a verified sender in Resend
+        sync: false          # set in dashboard; MUST be on a Resend-verified
+                             # domain (or onboarding@resend.dev for testing).
+                             # Declared sync:false so blueprint syncs never
+                             # overwrite the dashboard value.
       - key: RESEND_API_KEY
         sync: false          # paste in the Render dashboard (secret)
       # --- billing (Phase 4 Workstream B) ---
