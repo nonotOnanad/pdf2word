@@ -6,13 +6,40 @@ production.
 """
 from __future__ import annotations
 
+import logging
 import os
 
 import httpx
 
+logger = logging.getLogger("pdf2word.emailer")
+
+# Free-mail domains can never be verified as a Resend *sender* — Resend rejects
+# them with 403 "Domain not verified". Sending FROM gmail.com is impossible;
+# only a domain you control can be verified. Fall back to Resend's shared test
+# sender so a misconfiguration degrades instead of silently failing.
+UNVERIFIABLE_SENDER_DOMAINS = {
+    "gmail.com", "googlemail.com", "yahoo.com", "hotmail.com",
+    "outlook.com", "live.com", "icloud.com", "aol.com", "proton.me",
+}
+RESEND_TEST_SENDER = "onboarding@resend.dev"
+
 
 class EmailError(Exception):
     pass
+
+
+def _safe_sender(sender: str) -> str:
+    """Swap an impossible sender for Resend's test sender, loudly."""
+    domain = sender.rsplit("@", 1)[-1].lower() if "@" in sender else ""
+    if domain in UNVERIFIABLE_SENDER_DOMAINS:
+        logger.warning(
+            "EMAIL_FROM=%r uses %s, which cannot be verified as a sender. "
+            "Falling back to %s (delivers only to your Resend account email). "
+            "Set EMAIL_FROM to an address on a domain verified in Resend.",
+            sender, domain, RESEND_TEST_SENDER,
+        )
+        return RESEND_TEST_SENDER
+    return sender
 
 
 def send_magic_link(to_email: str, link: str) -> None:
@@ -26,7 +53,7 @@ def send_magic_link(to_email: str, link: str) -> None:
         return
     if provider == "resend":
         api_key = os.environ.get("RESEND_API_KEY")
-        sender = os.environ.get("EMAIL_FROM", "login@pdf2word.app")
+        sender = _safe_sender(os.environ.get("EMAIL_FROM", RESEND_TEST_SENDER))
         if not api_key:
             raise EmailError("RESEND_API_KEY not set")
         resp = httpx.post(
