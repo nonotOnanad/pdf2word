@@ -1,6 +1,8 @@
 """Auth HTTP endpoints: request-link, verify, logout, me."""
 from __future__ import annotations
 
+import logging
+
 from email_validator import EmailNotValidError, validate_email
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse, RedirectResponse
@@ -28,6 +30,8 @@ from app.emailer import send_magic_link
 from app.ratelimit import throttle
 from app.models import User
 
+logger = logging.getLogger("pdf2word.auth")
+
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 
@@ -45,10 +49,31 @@ def request_link(request: Request, payload: dict, db: OrmSession = Depends(get_d
     link = f"{API_BASE_URL}/api/auth/verify?token={token}"
     try:
         send_magic_link(email, link)
-    except Exception:
-        # Don't leak send failures to the client; log server-side in real deploy.
-        pass
+    except Exception as exc:
+        # Never leak send failures to the client (account enumeration), but they
+        # MUST be visible server-side or a misconfigured provider fails silently.
+        logger.error("magic-link send failed: %s: %s", type(exc).__name__, exc)
     return {"ok": True}
+
+
+@router.get("/config-check")
+def config_check():
+    """Non-secret diagnostic: is email/auth configured? No values are exposed —
+    only whether each setting is present and correctly shaped."""
+    import os
+
+    api_base = API_BASE_URL
+    key = os.environ.get("RESEND_API_KEY", "")
+    sender = os.environ.get("EMAIL_FROM", "")
+    return {
+        "email_provider": os.environ.get("EMAIL_PROVIDER", "console"),
+        "resend_api_key_set": bool(key),
+        "resend_api_key_prefix_ok": key.startswith("re_") if key else False,
+        "email_from_set": bool(sender),
+        "email_from_domain": sender.split("@")[-1] if "@" in sender else None,
+        "api_base_url": api_base,
+        "api_base_url_is_localhost": "localhost" in api_base or "127.0.0.1" in api_base,
+    }
 
 
 @router.get("/verify")
