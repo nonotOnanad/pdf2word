@@ -62,9 +62,14 @@ def config_check():
     only whether each setting is present and correctly shaped."""
     import os
 
+    from app.config import APP_BASE_URL, COOKIE_SECURE, SESSION_COOKIE_SAMESITE
+
     api_base = API_BASE_URL
     key = os.environ.get("RESEND_API_KEY", "")
     sender = os.environ.get("EMAIL_FROM", "")
+    # Cross-site cookies (frontend and API are different origins) require
+    # SameSite=None AND Secure, or the browser silently drops the session.
+    cookie_ok = SESSION_COOKIE_SAMESITE == "none" and COOKIE_SECURE
     return {
         "email_provider": os.environ.get("EMAIL_PROVIDER", "console"),
         "resend_api_key_set": bool(key),
@@ -73,6 +78,12 @@ def config_check():
         "email_from_domain": sender.split("@")[-1] if "@" in sender else None,
         "api_base_url": api_base,
         "api_base_url_is_localhost": "localhost" in api_base or "127.0.0.1" in api_base,
+        # --- post-login redirect + session cookie ---
+        "app_base_url": APP_BASE_URL,
+        "app_base_url_is_localhost": "localhost" in APP_BASE_URL or "127.0.0.1" in APP_BASE_URL,
+        "cookie_samesite": SESSION_COOKIE_SAMESITE,
+        "cookie_secure": COOKIE_SECURE,
+        "cross_site_cookie_ok": cookie_ok,
     }
 
 
