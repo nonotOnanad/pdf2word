@@ -56,6 +56,33 @@ def request_link(request: Request, payload: dict, db: OrmSession = Depends(get_d
     return {"ok": True}
 
 
+def _stripe_status() -> dict:
+    """Non-secret Stripe readiness: presence and shape only, never values.
+
+    Catches the usual mistakes — missing vars, a key/price/secret pasted into
+    the wrong field, or a truncated id — before a real checkout is attempted.
+    """
+    from app import config
+
+    sk = config.STRIPE_SECRET_KEY
+    whsec = config.STRIPE_WEBHOOK_SECRET
+    monthly = config.STRIPE_PRICE_MONTHLY
+    annual = config.STRIPE_PRICE_ANNUAL
+    ready = all([
+        sk.startswith("sk_"), whsec.startswith("whsec_"),
+        monthly.startswith("price_"), annual.startswith("price_"),
+    ])
+    return {
+        "stripe_secret_key_ok": sk.startswith("sk_"),
+        "stripe_mode": ("test" if "_test_" in sk else "live") if sk else None,
+        "stripe_webhook_secret_ok": whsec.startswith("whsec_"),
+        "stripe_price_monthly_ok": monthly.startswith("price_"),
+        "stripe_price_annual_ok": annual.startswith("price_"),
+        "stripe_prices_distinct": bool(monthly and annual and monthly != annual),
+        "billing_ready": ready,
+    }
+
+
 @router.get("/config-check")
 def config_check():
     """Non-secret diagnostic: is email/auth configured? No values are exposed —
@@ -84,6 +111,8 @@ def config_check():
         "cookie_samesite": SESSION_COOKIE_SAMESITE,
         "cookie_secure": COOKIE_SECURE,
         "cross_site_cookie_ok": cookie_ok,
+        # --- billing (Stripe) ---
+        **_stripe_status(),
     }
 
 
