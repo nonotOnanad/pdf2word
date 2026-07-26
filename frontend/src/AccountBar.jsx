@@ -21,9 +21,13 @@ export default function AccountBar() {
     e.preventDefault()
     if (!email) return
     setBusy(true)
+    setNotice('')
     try {
       await requestMagicLink(email)
       setSent(true)
+    } catch (err) {
+      // Surface the failure — a silent no-op leaves the user with no feedback.
+      setNotice(`Sign-in request failed: ${err?.message || 'network error'}`)
     } finally {
       setBusy(false)
     }
